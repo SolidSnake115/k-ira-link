@@ -18,8 +18,17 @@ header{display:flex;align-items:center;justify-content:space-between;padding:16p
 .avatar-card:before,.avatar-card:after{content:"";position:absolute;border-radius:50%;filter:blur(2px);pointer-events:none}
 .avatar-card:before{width:210px;height:310px;top:26px;background:linear-gradient(180deg,#f5efff,#b9a9d9 45%,#24182e);opacity:.95;clip-path:polygon(34% 0,67% 0,90% 22%,100% 60%,81% 100%,19% 100%,0 60%,10% 22%);box-shadow:0 0 38px #ff39ce44}
 .avatar-card:after{width:280px;height:180px;bottom:-80px;background:#ff39ce;opacity:.18;filter:blur(40px)}
-.avatar-art{position:relative;z-index:1;width:100%;height:430px;text-align:center;padding:0;display:flex;align-items:stretch;justify-content:center}
-.avatar-portrait{display:block;width:100%;height:100%;object-fit:cover;object-position:center 28%;border-radius:20px;filter:saturate(1.04)}
+.avatar-art{position:relative;z-index:1;width:100%;height:430px;text-align:center;padding:0;display:flex;align-items:stretch;justify-content:center;isolation:isolate}
+.avatar-portrait{display:block;width:100%;height:100%;object-fit:cover;object-position:center 28%;border-radius:20px;filter:saturate(1.04);transform-origin:50% 42%;transition:filter .35s ease}
+.avatar-art:before{content:"";position:absolute;inset:0;z-index:2;pointer-events:none;background:repeating-linear-gradient(0deg,transparent 0 5px,#38eaff0a 6px 7px);opacity:.35;mix-blend-mode:screen}
+.avatar-art:after{content:"";position:absolute;z-index:2;pointer-events:none;left:-20%;right:-20%;top:-30%;height:18%;background:linear-gradient(180deg,transparent,#38eaff20,#ff39ce18,transparent);filter:blur(5px);animation:scan 7s linear infinite}
+.avatar-card.is-speaking .avatar-portrait{animation:speakingGlow .9s ease-in-out infinite alternate;filter:saturate(1.2) brightness(1.07)}
+.avatar-card.is-thinking .avatar-portrait{animation:thinkingGlow 2.2s ease-in-out infinite}
+.avatar-card.is-listening .avatar-portrait{filter:saturate(1.18) brightness(1.04)}
+@keyframes scan{0%{transform:translateY(0)}100%{transform:translateY(780%)}}
+@keyframes speakingGlow{from{transform:scale(1);filter:saturate(1.08) brightness(1.02)}to{transform:scale(1.018);filter:saturate(1.3) brightness(1.12) drop-shadow(0 0 10px #38eaff66)}}
+@keyframes thinkingGlow{0%,100%{filter:saturate(1.04) brightness(1)}50%{filter:saturate(1.18) brightness(1.08) drop-shadow(0 0 8px #ff39ce55)}}
+@media(prefers-reduced-motion:reduce){.avatar-art:after,.avatar-card.is-speaking .avatar-portrait,.avatar-card.is-thinking .avatar-portrait{animation:none}}
 .avatar-caption{position:absolute;left:0;right:0;bottom:0;margin:0;padding:26px 12px 14px;background:linear-gradient(transparent,#090611d9);color:#f5eaff;font-size:.82rem;letter-spacing:.05em;text-shadow:0 0 12px #ff39ce}
 .halo{position:absolute;left:50%;top:26px;transform:translateX(-50%);width:240px;height:240px;border:1px solid #38eaff80;border-radius:50%;box-shadow:0 0 25px #38eaff20,inset 0 0 25px #ff39ce12}
 .face{position:relative;margin:35px auto 0;width:148px;height:182px;border-radius:48% 48% 43% 43%;background:linear-gradient(110deg,#e8dff7,#fff7ff 42%,#a99cc9);box-shadow:0 0 35px #ff39ce42;clip-path:polygon(8% 0,92% 0,100% 48%,78% 90%,50% 100%,22% 90%,0 48%)}
@@ -31,7 +40,7 @@ header{display:flex;align-items:center;justify-content:space-between;padding:16p
 .armor{width:215px;height:95px;margin:-5px auto 0;border-radius:55% 55% 12px 12px;background:linear-gradient(110deg,#080810,#272035 45%,#080810);border:1px solid #ff39ce99;box-shadow:0 0 22px #ff39ce22;position:relative}
 .armor:before{content:"";position:absolute;left:50%;top:0;height:100%;width:2px;background:linear-gradient(transparent,var(--cyan),transparent)}
 .armor:after{content:"K-01";position:absolute;right:15px;bottom:12px;font-size:10px;letter-spacing:.2em;color:var(--pink)}
-.avatar-caption{position:relative;z-index:3;margin-top:12px;color:#e9dfff;font-size:.78rem;letter-spacing:.05em}
+.avatar-caption{position:absolute;left:0;right:0;bottom:0;z-index:3;margin:0;padding:26px 12px 14px;background:linear-gradient(transparent,#090611d9);color:#e9dfff;font-size:.78rem;letter-spacing:.05em}
 .tagline{color:#c3b4d8;font-size:.8rem;text-align:center;margin-top:-4px}
 .panel{background:#100c19d9;border:1px solid #a88bff38;border-radius:18px;padding:14px}
 .panel-title{font-size:.72rem;letter-spacing:.15em;color:var(--cyan);text-transform:uppercase;margin-bottom:10px}
@@ -88,6 +97,11 @@ const avatar=document.getElementById('avatar');
 
 let history=[];
 let busy=false;
+const avatarCard=document.querySelector('.avatar-card');
+function setAvatarMode(mode){
+  avatarCard.classList.remove('is-speaking','is-thinking','is-listening');
+  if(mode) avatarCard.classList.add('is-'+mode);
+}
 
 function addBubble(text,who){
   const b=document.createElement('div');
@@ -105,9 +119,9 @@ function say(text){
   u.lang='es-ES';
   u.rate=.96;
   u.pitch=1.08;
-  u.onstart=()=>{statusEl.textContent='◉ HABLANDO';avatar.classList.add('pulse')};
-  u.onend=()=>{statusEl.textContent='● EN ESPERA';avatar.classList.remove('pulse')};
-  u.onerror=()=>{statusEl.textContent='● EN ESPERA';avatar.classList.remove('pulse')};
+  u.onstart=()=>{statusEl.textContent='◉ HABLANDO';avatar.classList.add('pulse');setAvatarMode('speaking')};
+  u.onend=()=>{statusEl.textContent='● EN ESPERA';avatar.classList.remove('pulse');setAvatarMode('')};
+  u.onerror=()=>{statusEl.textContent='● EN ESPERA';avatar.classList.remove('pulse');setAvatarMode('')};
   speechSynthesis.speak(u);
 }
 
@@ -119,6 +133,7 @@ async function reply(text){
   input.disabled=true;
   statusEl.textContent='◉ PENSANDO';
   avatar.classList.add('pulse');
+  setAvatarMode('thinking');
   const waiting=addBubble('Un momento, Snake… estoy pensando. 💜','kira');
 
   try{
@@ -149,6 +164,7 @@ async function reply(text){
     talk.disabled=false;
     input.disabled=false;
     avatar.classList.remove('pulse');
+    setAvatarMode('');
     if(statusEl.textContent==='◉ PENSANDO')statusEl.textContent='● EN ESPERA';
     input.focus();
   }
@@ -179,12 +195,14 @@ if(!SR){
     talk.textContent='🔴 Escuchando…';
     statusEl.textContent='◉ ESCUCHANDO';
     avatar.classList.add('pulse');
+    setAvatarMode('listening');
   };
   rec.onend=()=>{
     talk.classList.remove('listening');
     talk.textContent='🎙️ Toca para hablar';
     if(statusEl.textContent==='◉ ESCUCHANDO')statusEl.textContent='● EN ESPERA';
     avatar.classList.remove('pulse');
+    setAvatarMode('');
   };
   rec.onerror=event=>{
     statusEl.textContent='! MICRÓFONO';
