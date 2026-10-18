@@ -19,19 +19,7 @@ header{display:flex;align-items:center;justify-content:space-between;padding:16p
 .avatar-card:before{width:210px;height:310px;top:26px;background:linear-gradient(180deg,#f5efff,#b9a9d9 45%,#24182e);opacity:.95;clip-path:polygon(34% 0,67% 0,90% 22%,100% 60%,81% 100%,19% 100%,0 60%,10% 22%);box-shadow:0 0 38px #ff39ce44}
 .avatar-card:after{width:280px;height:180px;bottom:-80px;background:#ff39ce;opacity:.18;filter:blur(40px)}
 .avatar-art{position:relative;z-index:1;width:100%;height:430px;text-align:center;padding:0;display:flex;align-items:stretch;justify-content:center;isolation:isolate}
-.avatar-portrait{display:block;width:100%;height:100%;object-fit:cover;object-position:center 28%;border-radius:20px;filter:saturate(1.04);transform-origin:50% 42%;transition:filter .35s ease}
-/* Parpadeo experimental alineado con el retrato actual */
-.blink-lid{position:absolute;z-index:4;top:30.5%;width:9%;height:4.8%;pointer-events:none;opacity:0;
-background:linear-gradient(180deg,#d7aab7 0%,#f1cbd4 35%,#e4b6c5 78%,#81506d 100%);
-border-bottom:2px solid #58324f;border-radius:45% 45% 55% 55%;
-box-shadow:0 1px 3px #12081788;transform-origin:center; }
-.blink-left{left:42.5%;transform:rotate(-8deg) scaleY(.03)}
-.blink-right{left:60.5%;transform:rotate(8deg) scaleY(.03)}
-.avatar-card.blinking .blink-left{opacity:1;animation:blinkLeft .18s ease-in-out forwards}
-.avatar-card.blinking .blink-right{opacity:1;animation:blinkRight .18s ease-in-out forwards}
-@keyframes blinkLeft{0%,100%{transform:rotate(-8deg) scaleY(.03)}40%,65%{transform:rotate(-8deg) scaleY(1)}}
-@keyframes blinkRight{0%,100%{transform:rotate(8deg) scaleY(.03)}40%,65%{transform:rotate(8deg) scaleY(1)}}
-
+.avatar-portrait{display:block;width:100%;height:100%;object-fit:cover;object-position:center 28%;border-radius:20px;filter:saturate(1.04);transform-origin:50% 42%;transition:filter .12s ease}
 .avatar-art:before{content:"";position:absolute;inset:0;z-index:2;pointer-events:none;background:repeating-linear-gradient(0deg,transparent 0 5px,#38eaff0a 6px 7px);opacity:.35;mix-blend-mode:screen}
 .avatar-art:after{content:"";position:absolute;z-index:2;pointer-events:none;left:-20%;right:-20%;top:-30%;height:18%;background:linear-gradient(180deg,transparent,#38eaff20,#ff39ce18,transparent);filter:blur(5px);animation:scan 7s linear infinite}
 .avatar-card.is-speaking .avatar-portrait{animation:speakingGlow .9s ease-in-out infinite alternate;filter:saturate(1.2) brightness(1.07)}
@@ -40,7 +28,7 @@ box-shadow:0 1px 3px #12081788;transform-origin:center; }
 @keyframes scan{0%{transform:translateY(0)}100%{transform:translateY(780%)}}
 @keyframes speakingGlow{from{transform:scale(1);filter:saturate(1.08) brightness(1.02)}to{transform:scale(1.018);filter:saturate(1.3) brightness(1.12) drop-shadow(0 0 10px #38eaff66)}}
 @keyframes thinkingGlow{0%,100%{filter:saturate(1.04) brightness(1)}50%{filter:saturate(1.18) brightness(1.08) drop-shadow(0 0 8px #ff39ce55)}}
-@media(prefers-reduced-motion:reduce){.avatar-art:after,.avatar-card.is-speaking .avatar-portrait,.avatar-card.is-thinking .avatar-portrait,.avatar-card.blinking .blink-lid{animation:none}}
+@media(prefers-reduced-motion:reduce){.avatar-art:after,.avatar-card.is-speaking .avatar-portrait,.avatar-card.is-thinking .avatar-portrait{animation:none}}
 .avatar-caption{position:absolute;left:0;right:0;bottom:0;margin:0;padding:26px 12px 14px;background:linear-gradient(transparent,#090611d9);color:#f5eaff;font-size:.82rem;letter-spacing:.05em;text-shadow:0 0 12px #ff39ce}
 .halo{position:absolute;left:50%;top:26px;transform:translateX(-50%);width:240px;height:240px;border:1px solid #38eaff80;border-radius:50%;box-shadow:0 0 25px #38eaff20,inset 0 0 25px #ff39ce12}
 .face{position:relative;margin:35px auto 0;width:148px;height:182px;border-radius:48% 48% 43% 43%;background:linear-gradient(110deg,#e8dff7,#fff7ff 42%,#a99cc9);box-shadow:0 0 35px #ff39ce42;clip-path:polygon(8% 0,92% 0,100% 48%,78% 90%,50% 100%,22% 90%,0 48%)}
@@ -79,8 +67,6 @@ footer{text-align:center;color:#8f829f;font-size:.68rem;padding:2px 10px 8px}
 <section class="avatar-card" aria-label="Avatar de Kira">
   <div class="avatar-art" id="avatar">
     <img class="avatar-portrait" src="kira-avatar.png" alt="Kira, cyborg de pelo plateado y ojos violetas en una ciudad cyberpunk">
-    <span class="blink-lid blink-left" aria-hidden="true"></span>
-    <span class="blink-lid blink-right" aria-hidden="true"></span>
     <div class="avatar-caption">“Ara ara~, Snake…”</div>
   </div>
 </section>
@@ -108,6 +94,9 @@ const log=document.getElementById('log');
 const input=document.getElementById('text');
 const hint=document.getElementById('hint');
 const avatar=document.getElementById('avatar');
+const avatarPortrait=document.querySelector('.avatar-portrait');
+const OPEN_PORTRAIT='kira-avatar.png';
+const CLOSED_PORTRAIT='kira-avatar-closed.png';
 
 let history=[];
 let busy=false;
@@ -116,18 +105,18 @@ function setAvatarMode(mode){
   avatarCard.classList.remove('is-speaking','is-thinking','is-listening');
   if(mode) avatarCard.classList.add('is-'+mode);
 }
-// Parpadeo breve aleatorio cada 3.5–6 segundos.
+
+// Parpadeo real por intercambio de dos retratos: no usa párpados superpuestos.
+let blinkTimeout;
 function blinkOnce(){
-  if(document.hidden) return;
-  avatarCard.classList.remove('blinking');
-  void avatarCard.offsetWidth;
-  avatarCard.classList.add('blinking');
-  window.setTimeout(()=>avatarCard.classList.remove('blinking'),220);
+  if(document.hidden || !avatarPortrait) return;
+  avatarPortrait.src=CLOSED_PORTRAIT;
+  window.clearTimeout(blinkTimeout);
+  blinkTimeout=window.setTimeout(()=>{avatarPortrait.src=OPEN_PORTRAIT;},190);
 }
 (function scheduleBlink(){
-  window.setTimeout(()=>{blinkOnce();scheduleBlink()},3500+Math.random()*2500);
+  window.setTimeout(()=>{blinkOnce();scheduleBlink();},4000+Math.random()*2500);
 })();
-
 
 function addBubble(text,who){
   const b=document.createElement('div');
