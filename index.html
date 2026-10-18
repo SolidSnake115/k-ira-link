@@ -20,16 +20,17 @@ header{display:flex;align-items:center;justify-content:space-between;padding:16p
 .avatar-card:after{width:280px;height:180px;bottom:-80px;background:#ff39ce;opacity:.18;filter:blur(40px)}
 .avatar-art{position:relative;z-index:1;width:100%;height:430px;text-align:center;padding:0;display:flex;align-items:stretch;justify-content:center;isolation:isolate}
 .avatar-portrait{display:block;width:100%;height:100%;object-fit:cover;object-position:center 28%;border-radius:20px;filter:saturate(1.04);transform-origin:50% 42%;transition:filter .35s ease}
-/* Párpados superpuestos: animación 2D */
-.blink-lid{position:absolute;z-index:3;top:30.8%;width:12.5%;height:5.2%;pointer-events:none;opacity:0;transform:scaleY(.04);transform-origin:center;
-background:linear-gradient(180deg,#e7c6d0 0%,#f0d6dc 36%,#e0b7c4 78%,#b27c98 100%);border-bottom:2px solid #714365;border-radius:48% 48% 55% 55%;box-shadow:0 1px 4px #26102b88}
-.blink-left{left:37.8%;transform:rotate(-7deg) scaleY(.04)}
-.blink-right{left:57.8%;transform:rotate(7deg) scaleY(.04)}
-.avatar-card.blinking .blink-lid{opacity:1;animation-duration:.19s;animation-timing-function:ease-in-out;animation-fill-mode:forwards}
-.avatar-card.blinking .blink-left{animation-name:eyelidBlinkLeft}
-.avatar-card.blinking .blink-right{animation-name:eyelidBlinkRight}
-@keyframes eyelidBlinkLeft{0%,100%{transform:rotate(-7deg) scaleY(.04)}45%,65%{transform:rotate(-7deg) scaleY(1)}}
-@keyframes eyelidBlinkRight{0%,100%{transform:rotate(7deg) scaleY(.04)}45%,65%{transform:rotate(7deg) scaleY(1)}}
+/* Parpadeo experimental alineado con el retrato actual */
+.blink-lid{position:absolute;z-index:4;top:30.5%;width:9%;height:4.8%;pointer-events:none;opacity:0;
+background:linear-gradient(180deg,#d7aab7 0%,#f1cbd4 35%,#e4b6c5 78%,#81506d 100%);
+border-bottom:2px solid #58324f;border-radius:45% 45% 55% 55%;
+box-shadow:0 1px 3px #12081788;transform-origin:center; }
+.blink-left{left:42.5%;transform:rotate(-8deg) scaleY(.03)}
+.blink-right{left:60.5%;transform:rotate(8deg) scaleY(.03)}
+.avatar-card.blinking .blink-left{opacity:1;animation:blinkLeft .18s ease-in-out forwards}
+.avatar-card.blinking .blink-right{opacity:1;animation:blinkRight .18s ease-in-out forwards}
+@keyframes blinkLeft{0%,100%{transform:rotate(-8deg) scaleY(.03)}40%,65%{transform:rotate(-8deg) scaleY(1)}}
+@keyframes blinkRight{0%,100%{transform:rotate(8deg) scaleY(.03)}40%,65%{transform:rotate(8deg) scaleY(1)}}
 
 .avatar-art:before{content:"";position:absolute;inset:0;z-index:2;pointer-events:none;background:repeating-linear-gradient(0deg,transparent 0 5px,#38eaff0a 6px 7px);opacity:.35;mix-blend-mode:screen}
 .avatar-art:after{content:"";position:absolute;z-index:2;pointer-events:none;left:-20%;right:-20%;top:-30%;height:18%;background:linear-gradient(180deg,transparent,#38eaff20,#ff39ce18,transparent);filter:blur(5px);animation:scan 7s linear infinite}
@@ -115,18 +116,18 @@ function setAvatarMode(mode){
   avatarCard.classList.remove('is-speaking','is-thinking','is-listening');
   if(mode) avatarCard.classList.add('is-'+mode);
 }
-// Parpadeo 2D ocasional.
+// Parpadeo breve aleatorio cada 3.5–6 segundos.
 function blinkOnce(){
   if(document.hidden) return;
   avatarCard.classList.remove('blinking');
   void avatarCard.offsetWidth;
   avatarCard.classList.add('blinking');
-  window.setTimeout(()=>avatarCard.classList.remove('blinking'),240);
+  window.setTimeout(()=>avatarCard.classList.remove('blinking'),220);
 }
 (function scheduleBlink(){
-  const delay=3500+Math.random()*2600;
-  window.setTimeout(()=>{blinkOnce();scheduleBlink()},delay);
+  window.setTimeout(()=>{blinkOnce();scheduleBlink()},3500+Math.random()*2500);
 })();
+
 
 function addBubble(text,who){
   const b=document.createElement('div');
