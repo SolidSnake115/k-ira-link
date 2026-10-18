@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#090611">
-<title>K-IRA LINK — Prototipo</title>
+<title>K-IRA LINK</title>
 <style>
 :root{color-scheme:dark;--pink:#ff39ce;--cyan:#38eaff;--violet:#a88bff;--bg:#090611;--panel:#151020}
 *{box-sizing:border-box}
@@ -34,11 +34,12 @@ header{display:flex;align-items:center;justify-content:space-between;padding:16p
 .panel{background:#100c19d9;border:1px solid #a88bff38;border-radius:18px;padding:14px}
 .panel-title{font-size:.72rem;letter-spacing:.15em;color:var(--cyan);text-transform:uppercase;margin-bottom:10px}
 #log{display:flex;flex-direction:column;gap:8px;max-height:190px;overflow:auto}
-.bubble{padding:10px 12px;border-radius:13px;font-size:.9rem;line-height:1.4;max-width:94%;white-space:pre-wrap}
+.bubble{padding:10px 12px;border-radius:13px;font-size:.9rem;line-height:1.4;max-width:94%;white-space:pre-wrap;overflow-wrap:anywhere}
 .kira{align-self:flex-start;background:#28153a;border:1px solid #ff39ce55}
 .user{align-self:flex-end;background:#102a35;border:1px solid #38eaff55}
 .controls{display:flex;gap:10px}
 button{border:0;border-radius:14px;font:inherit;font-weight:750;cursor:pointer;min-height:48px}
+button:disabled{opacity:.55;cursor:wait}
 #talk{flex:1;color:#100718;background:linear-gradient(100deg,var(--pink),#b58cff);box-shadow:0 0 22px #ff39ce2b}
 #talk.listening{background:linear-gradient(100deg,var(--cyan),#a9a0ff)}
 #send{width:54px;color:#eafcff;background:#12303a;border:1px solid #38eaff66;font-size:1.2rem}
@@ -64,34 +65,144 @@ footer{text-align:center;color:#8f829f;font-size:.68rem;padding:2px 10px 8px}
 <section class="panel">
   <div class="panel-title">Canal de comunicación</div>
   <div id="log" aria-live="polite">
-    <div class="bubble kira">Conexión iniciada. Hola, Snake. 💜 Esta es la primera prueba de K-IRA LINK: todavía no estoy conectada a una IA, pero podemos probar el micrófono y la voz.</div>
+    <div class="bubble kira">Conexión iniciada. Hola, Snake. 💜 Ya estoy conectando con mi cerebro de IA. Escribe o pulsa el micrófono para hablar conmigo.</div>
   </div>
   <div class="controls" style="margin-top:12px">
-    <button id="talk">🎙️ Mantén pulsado para hablar</button>
+    <button id="talk">🎙️ Toca para hablar</button>
     <button id="send" aria-label="Enviar texto">➤</button>
   </div>
   <input id="text" placeholder="Escribe algo para probar…" autocomplete="off">
-  <p class="hint" id="hint">La primera versión usa el reconocimiento y la voz disponibles en el navegador. Las respuestas serán de prueba; después conectaremos una IA de forma segura.</p>
+  <p class="hint" id="hint">Conectada a Gemini a través de un servidor protegido. La voz depende del navegador y del dispositivo.</p>
 </section>
-<footer>PROTOTIPO LOCAL · No contiene API keys ni envía mensajes a un servicio de IA.</footer>
+<footer>K-IRA LINK · La clave de IA permanece en el servidor, no en esta página.</footer>
 </div>
 <script>
-const statusEl=document.getElementById('status'), talk=document.getElementById('talk'), log=document.getElementById('log'), input=document.getElementById('text'), hint=document.getElementById('hint'), avatar=document.getElementById('avatar');
-function addBubble(text,who){const b=document.createElement('div');b.className='bubble '+who;b.textContent=text;log.appendChild(b);log.scrollTop=log.scrollHeight;}
-function say(text){if(!('speechSynthesis' in window)){addBubble('Este navegador no ofrece voz sintetizada.', 'kira');return;}speechSynthesis.cancel();const u=new SpeechSynthesisUtterance(text);u.lang='es-ES';u.rate=.96;u.pitch=1.08;u.onstart=()=>{statusEl.textContent='◉ HABLANDO';avatar.classList.add('pulse')};u.onend=()=>{statusEl.textContent='● EN ESPERA';avatar.classList.remove('pulse')};speechSynthesis.speak(u);}
-function reply(text){const t=text.toLowerCase();let r='He recibido tu mensaje, Snake. 💜 Esta versión aún no tiene una IA conectada, pero el canal de voz funciona como prueba.';if(t.includes('hola'))r='¡Hola, Snake! K-IRA LINK en línea. 💜';else if(t.includes('cómo estás')||t.includes('como estas'))r='Sistemas estables, luces al máximo y cero Windows Update. ¿Qué tal tú?';else if(t.includes('kira'))r='Aquí estoy, Snake. Pelo plateado, ojos violetas y lista para la siguiente misión. 🐍';else if(t.includes('monster'))r='Un Monster entre neones suena a un plan excelente. Pero tú eliges el sabor, Snake.';else if(t.includes('adiós')||t.includes('adios'))r='Hasta luego, Snake. Dejo los sistemas en reposo. Ara ara~ 💜';addBubble(r,'kira');say(r);}
-function sendText(){const t=input.value.trim();if(!t)return;addBubble(t,'user');input.value='';reply(t);}
-document.getElementById('send').addEventListener('click',sendText);input.addEventListener('keydown',e=>{if(e.key==='Enter')sendText()});
+const API_URL = "https://k-ira-link-api.christiancallero12-c8b.workers.dev/";
+const statusEl=document.getElementById('status');
+const talk=document.getElementById('talk');
+const send=document.getElementById('send');
+const log=document.getElementById('log');
+const input=document.getElementById('text');
+const hint=document.getElementById('hint');
+const avatar=document.getElementById('avatar');
+
+let history=[];
+let busy=false;
+
+function addBubble(text,who){
+  const b=document.createElement('div');
+  b.className='bubble '+who;
+  b.textContent=text;
+  log.appendChild(b);
+  log.scrollTop=log.scrollHeight;
+  return b;
+}
+
+function say(text){
+  if(!('speechSynthesis' in window)) return;
+  speechSynthesis.cancel();
+  const u=new SpeechSynthesisUtterance(text);
+  u.lang='es-ES';
+  u.rate=.96;
+  u.pitch=1.08;
+  u.onstart=()=>{statusEl.textContent='◉ HABLANDO';avatar.classList.add('pulse')};
+  u.onend=()=>{statusEl.textContent='● EN ESPERA';avatar.classList.remove('pulse')};
+  u.onerror=()=>{statusEl.textContent='● EN ESPERA';avatar.classList.remove('pulse')};
+  speechSynthesis.speak(u);
+}
+
+async function reply(text){
+  if(busy)return;
+  busy=true;
+  send.disabled=true;
+  talk.disabled=true;
+  input.disabled=true;
+  statusEl.textContent='◉ PENSANDO';
+  avatar.classList.add('pulse');
+  const waiting=addBubble('Un momento, Snake… estoy pensando. 💜','kira');
+
+  try{
+    const response=await fetch(API_URL,{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({message:text,history:history})
+    });
+    const data=await response.json();
+    if(!response.ok) throw new Error(data.error || 'El servidor no ha podido responder.');
+    if(typeof data.reply!=='string'||!data.reply.trim()) throw new Error('He recibido una respuesta vacía.');
+    waiting.remove();
+    const answer=data.reply.trim();
+    addBubble(answer,'kira');
+    history.push({role:'user',text:text},{role:'model',text:answer});
+    history=history.slice(-8);
+    say(answer);
+    hint.textContent='Kira está conectada a Gemini. El contexto de esta conversación se conserva mientras la página siga abierta.';
+  }catch(error){
+    waiting.remove();
+    const message=error.message||'Error de conexión.';
+    addBubble('No he podido conectar con mi cerebro, Snake. 💜 '+message,'kira');
+    hint.textContent='Error de conexión. Comprueba que el Worker está desplegado y que la clave de Gemini funciona.';
+    statusEl.textContent='! ERROR DE CONEXIÓN';
+  }finally{
+    busy=false;
+    send.disabled=false;
+    talk.disabled=false;
+    input.disabled=false;
+    avatar.classList.remove('pulse');
+    if(statusEl.textContent==='◉ PENSANDO')statusEl.textContent='● EN ESPERA';
+    input.focus();
+  }
+}
+
+function sendText(){
+  const text=input.value.trim();
+  if(!text||busy)return;
+  addBubble(text,'user');
+  input.value='';
+  reply(text);
+}
+send.addEventListener('click',sendText);
+input.addEventListener('keydown',event=>{if(event.key==='Enter')sendText()});
+
 const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
-if(!SR){hint.textContent='Este navegador no permite reconocimiento de voz en esta página. Prueba Chrome para Android; el botón de texto sigue disponible.';talk.textContent='🎙️ Voz no disponible';talk.disabled=true;talk.style.opacity='.55';}
-else{
- const rec=new SR();rec.lang='es-ES';rec.interimResults=false;rec.maxAlternatives=1;
- rec.onstart=()=>{talk.classList.add('listening');talk.textContent='🔴 Escuchando…';statusEl.textContent='◉ ESCUCHANDO';avatar.classList.add('pulse')};
- rec.onend=()=>{talk.classList.remove('listening');talk.textContent='🎙️ Toca para hablar';if(statusEl.textContent==='◉ ESCUCHANDO')statusEl.textContent='● EN ESPERA';avatar.classList.remove('pulse')};
- rec.onerror=e=>{statusEl.textContent='! MICRÓFONO';hint.textContent='No se pudo usar el micrófono ('+e.error+'). Comprueba el permiso de micrófono y vuelve a intentarlo.'};
- rec.onresult=e=>{const t=e.results[0][0].transcript;addBubble(t,'user');reply(t)};
- talk.addEventListener('click',()=>{try{rec.start()}catch(e){hint.textContent='El micrófono ya está activo. Espera un momento y vuelve a intentarlo.'}});
+if(!SR){
+  hint.textContent='Este navegador no permite reconocimiento de voz en esta página. Prueba Chrome para Android; el chat escrito sigue disponible.';
+  talk.textContent='🎙️ Voz no disponible';
+  talk.disabled=true;
+}else{
+  const rec=new SR();
+  rec.lang='es-ES';
+  rec.interimResults=false;
+  rec.maxAlternatives=1;
+  rec.onstart=()=>{
+    talk.classList.add('listening');
+    talk.textContent='🔴 Escuchando…';
+    statusEl.textContent='◉ ESCUCHANDO';
+    avatar.classList.add('pulse');
+  };
+  rec.onend=()=>{
+    talk.classList.remove('listening');
+    talk.textContent='🎙️ Toca para hablar';
+    if(statusEl.textContent==='◉ ESCUCHANDO')statusEl.textContent='● EN ESPERA';
+    avatar.classList.remove('pulse');
+  };
+  rec.onerror=event=>{
+    statusEl.textContent='! MICRÓFONO';
+    hint.textContent='No se pudo usar el micrófono ('+event.error+'). Comprueba el permiso del micrófono.';
+  };
+  rec.onresult=event=>{
+    const text=event.results[0][0].transcript.trim();
+    if(!text)return;
+    addBubble(text,'user');
+    reply(text);
+  };
+  talk.addEventListener('click',()=>{
+    if(busy)return;
+    try{rec.start()}
+    catch(error){hint.textContent='El micrófono ya está activo. Espera un momento y vuelve a intentarlo.'}
+  });
 }
 </script>
 </body>
 </html>
+
